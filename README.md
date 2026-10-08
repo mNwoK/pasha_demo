@@ -40,21 +40,78 @@
 └── docker-compose.yml     # postgres + api
 ```
 
-## Быстрый старт (Docker)
+## Первый запуск: от клона до проверенных эндпоинтов
+
+Требуется: **Docker с Compose** и свободный порт **5432** (если запущен локальный Postgres — остановите его или поменяйте порт в `docker-compose.yml`). Python и uv не нужны — всё работает в контейнерах.
 
 ```bash
-cp .env.example .env
-docker compose up --build
+# 1. Заходим в склонированный проект
+cd [ИМЯ_ПАПКИ]          # имя папки вашего репозитория
+
+# 2. Поднимаем БД и API целиком — миграции применятся автоматически
+docker compose up -d --build
+
+# 3. Проверяем, что сервис жив
+curl http://localhost:8000/healthz
+# {"status":"ok"}
+```
+
+Проверка эндпоинтов (по порядку, `id` из ответов подставляются в следующие команды):
+
+```bash
+# Создаём пользователя
+curl -X POST http://localhost:8000/users \
+  -H "Content-Type: application/json" \
+  -d '{"username": "ivan", "email": "ivan@example.com"}'
+
+# Создаём товар
+curl -X POST http://localhost:8000/products \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Мышь", "price": 100.00, "stock": 10}'
+
+# Кладём товар в корзину пользователя №1
+curl -X POST http://localhost:8000/cart/1/items \
+  -H "Content-Type: application/json" \
+  -d '{"product_id": 1, "quantity": 2}'
+
+# Смотрим корзину с итоговой суммой
+curl http://localhost:8000/cart/1
+```
+
+Ожидаемый ответ последнего запроса:
+
+```json
+{
+  "user_id": 1,
+  "items": [
+    {"product_id": 1, "name": "Мышь", "price": "100.00", "quantity": 2, "total": "200.00"}
+  ],
+  "total": "200.00"
+}
 ```
 
 После запуска:
 
 - API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
+- Swagger UI (можно дёргать эндпоинты из браузера): http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 - База: localhost:5432 (postgres/postgres)
 
-При старте контейнера автоматически применяются миграции (`alembic upgrade head`).
+Остановка:
+
+```bash
+docker compose down      # остановить (данные сохранятся в томе pgdata)
+docker compose down -v   # остановить и удалить данные БД — следующий запуск с чистой базы
+```
+
+Замечания:
+
+- Зависимости подтягиваются автоматически: при сборке Docker скачает
+  базовые образы (`python:3.13-slim`, `postgres:16-alpine`, образ `uv`)
+  и внутри образа установит все Python-зависимости (`uv sync` в Dockerfile).
+  Нужен только интернет при первом запуске — дальше всё кэшируется.
+- Файл `.env` для этого способа **не нужен** — Compose сам передаёт `DATABASE_URL` в контейнер, а `.env` не попадает в образ (см. `.dockerignore`). Он понадобится для локального запуска через `uv` и для тестов.
+- Миграции применяются перед стартом сервера (`CMD` в Dockerfile), поэтому сразу после `up` таблицы уже готовы.
 
 ## Локальный запуск через uv
 
