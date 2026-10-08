@@ -55,41 +55,6 @@ docker compose up -d --build
 curl http://localhost:8000/healthz
 # {"status":"ok"}
 ```
-
-Проверка эндпоинтов (по порядку, `id` из ответов подставляются в следующие команды):
-
-```bash
-# Создаём пользователя
-curl -X POST http://localhost:8000/users \
-  -H "Content-Type: application/json" \
-  -d '{"username": "ivan", "email": "ivan@example.com"}'
-
-# Создаём товар
-curl -X POST http://localhost:8000/products \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Мышь", "price": 100.00, "stock": 10}'
-
-# Кладём товар в корзину пользователя №1
-curl -X POST http://localhost:8000/cart/1/items \
-  -H "Content-Type: application/json" \
-  -d '{"product_id": 1, "quantity": 2}'
-
-# Смотрим корзину с итоговой суммой
-curl http://localhost:8000/cart/1
-```
-
-Ожидаемый ответ последнего запроса:
-
-```json
-{
-  "user_id": 1,
-  "items": [
-    {"product_id": 1, "name": "Мышь", "price": "100.00", "quantity": 2, "total": "200.00"}
-  ],
-  "total": "200.00"
-}
-```
-
 После запуска:
 
 - API: http://localhost:8000
